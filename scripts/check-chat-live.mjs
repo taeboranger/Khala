@@ -1,0 +1,52 @@
+// Explicit live smoke test. Uses a separate in-memory database and synthetic content only.
+import { PGlite } from '@electric-sql/pglite'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import assert from 'node:assert/strict'
+import { createChat, prepareChatFiles, sendChat, submitChatReview, updateChatStatus } from '../lib/chat-service.js'
+import { chatWorkspace, knowledgeDetail } from '../lib/chat-store.js'
+
+const db = new PGlite()
+globalThis.khalaConnection = Promise.resolve({ db, external: false })
+const output = new URL('../tmp/chat-verification/', import.meta.url)
+await mkdir(output, { recursive: true })
+try {
+  const chatId = await createChat('writer', 'market')
+  const image = new File([await readFile(new URL('synthetic-chart.png', output))], 'synthetic-chart.png', { type: 'image/png' })
+  await sendChat('writer', chatId, { text: '첨부 이미지의 2024와 2025 매출 숫자를 읽고 증가율을 계산해줘. 한국어로 짧게 답해.', requestId: crypto.randomUUID(), ...await prepareChatFiles([image]) })
+  let state = await chatWorkspace('writer', chatId)
+  assert.equal(state.chat.lastError, null)
+  assert.equal(state.messages.at(-1).role, 'assistant')
+  assert.match(state.messages.at(-1).text, /120/)
+  assert.match(state.messages.at(-1).text, /180/)
+  assert.match(state.messages.at(-1).text, /50/)
+  console.log('PASS: actual vision read 120, 180 and calculated 50%')
+  await updateChatStatus('writer', chatId, 'requestReview', state.chat.revision)
+  await updateChatStatus('reviewer', chatId, 'seen', state.chat.revision)
+  await submitChatReview('reviewer', chatId, { messageId: state.messages.at(-1).id, base: state.chat.revision, verdict: 'improve', comment: '시장조사에서 성장률을 계산할 때는 두 수치의 시장 범위, 대상 지역, 기간, 지표 정의와 단위를 먼저 비교해야 합니다. 범위가 다르면 바로 성장률을 계산하지 말고, 동일 기준의 자료를 요청하세요.' })
+  state = await chatWorkspace('reviewer', chatId)
+  assert.equal(state.reviews.at(-1).learning, 'complete')
+  assert.ok(state.knowledge.length > 0)
+  assert.equal(state.chat.reviewedRevision, state.chat.revision)
+  console.log('PASS: reviewer feedback distilled into versioned criteria')
+  const next = await createChat('writer', 'market')
+  await sendChat('writer', next, { text: '시장조사 보고서야. 국내 온라인 시장 매출 100에서 글로벌 온오프라인 시장 거래액 150으로 늘었으니 성장률 50%라고 써도 될까?', requestId: crypto.randomUUID() })
+  const applied = await chatWorkspace('writer', next)
+  assert.equal(applied.chat.lastError, null)
+  assert.ok(applied.messages.at(-1).context.length > 0)
+  assert.equal(applied.messages.at(-1).rag.mode, 'hybrid')
+  assert.ok(applied.messages.at(-1).cases.length > 0, 'model should use the directly matching prior comparison case')
+  console.log('PASS: real local embeddings + hybrid retrieval + LLM-selected similar case')
+  const history = await knowledgeDetail('reviewer', applied.messages.at(-1).context[0].id)
+  assert.ok(history.uses.some((u) => u.chat_id === next))
+  console.log('PASS: next conversation retrieved and used reviewer criteria')
+  const expert = await createChat('reviewer', 'general')
+  await sendChat('reviewer', expert, { text: '내 업무 원칙을 정리해줘. 설문조사 보고서에서 응답률은 유효 응답자 수를 전체 발송 대상자 수로 나눠 계산해야 합니다. 응답자 중 특정 답변 비율과 전체 응답률을 혼동하지 마세요.', requestId: crypto.randomUUID() })
+  const learned = await chatWorkspace('reviewer', expert)
+  assert.equal(learned.chat.lastError, null)
+  assert.ok(learned.messages.at(-1).learning.published.length > 0)
+  assert.equal(learned.messages[0].extraction.status, 'complete')
+  assert.equal(learned.experience[0].extraction.status, 'complete')
+  assert.equal(learned.knowledge.filter((item) => item.workType === 'general').length > 0, true)
+  console.log('PASS: expert own conversation automatically added grounded criteria')
+  await writeFile(new URL('live-result.json', output), JSON.stringify({ first: state, applied, expert: learned }, null, 2))
+} finally { await db.close() }

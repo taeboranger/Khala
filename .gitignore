@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.playwright-mcp/
+.khala/
+.khala-models/
+.env*
+!.env.example
+tmp/
+output/
+__pycache__/
+*.pyc
+*.log
+coverage/
+.DS_Store
+Thumbs.db
