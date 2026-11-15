@@ -21,9 +21,11 @@ const { chromium } = require('C:/Program Files/WindowsApps/OpenAI.CodexPrimaryRu
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } })
     page.on('pageerror', (error) => errors.push(error.message))
+    await page.route('**/api/auth', route => route.fulfill({json:{user:{id:'reviewer',name:'이서윤',role:'reviewer'},people:{reviewer:{name:'이서윤',role:'리뷰어',publish:true}}}}))
+    await page.route('**/api/connection', route => route.fulfill({json:{connected:true,provider:'mock',model:'test'}}))
     await page.route('**/api/pdf?*', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: png }))
     await page.route('**/api/workspace', async (route) => {
-      const actor = route.request().headers()['x-khala-actor'] || 'writer'
+      const actor = 'reviewer'
       if (route.request().method() === 'GET') return route.fulfill({ json: { ...view(state, actor), modelReady: true } })
       const body = route.request().postDataJSON()
       if (body.op === 'feedback' && failOnce) { failOnce = false; return route.fulfill({ status: 503, json: { error: '테스트 연결 오류 · 입력 유지 확인' } }) }
@@ -34,7 +36,6 @@ const { chromium } = require('C:/Program Files/WindowsApps/OpenAI.CodexPrimaryRu
     })
     await page.goto('http://127.0.0.1:3010')
     async function openEmployee() {
-      await page.getByLabel('데모 사용자').selectOption('reviewer')
       await page.getByRole('button', { name: '리뷰 대기열', exact: true }).click()
       await page.getByRole('button', { name: '직원 테스트', exact: true }).click()
       await page.getByRole('button', { name: '이 내용으로 수정 요청', exact: true }).first().click()

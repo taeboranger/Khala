@@ -7,11 +7,12 @@ const { chromium } = require('C:/Program Files/WindowsApps/OpenAI.CodexPrimaryRu
   const fixture = result.first
   const combined = { threads: [...fixture.threads, result.applied.chat, result.expert.chat], knowledge: result.expert.knowledge, experience: result.expert.experience }
   const browser = await chromium.launch({ headless: true, channel: 'msedge' })
-  const errors = []; const posts = []
+  const errors = []; const posts = []; let fixtureActor = 'writer'
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
     page.on('pageerror', (error) => errors.push(error.message))
     page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) })
+    await page.route('**/api/auth', route => route.fulfill({json:{user:{id:fixtureActor,name:fixtureActor,role:fixtureActor==='writer'?'member':'reviewer'},people:{writer:{name:'김지우',role:'업무 사용자'},reviewer:{name:'이서윤',role:'리뷰어'},peer:{name:'박도현',role:'리뷰어'}}}}))
     await page.route('**/api/connection', (route) => route.fulfill({ json: { connected: true } }))
     await page.route('**/api/chat*', async (route) => {
       const request = route.request()
@@ -40,7 +41,7 @@ const { chromium } = require('C:/Program Files/WindowsApps/OpenAI.CodexPrimaryRu
     await page.reload()
     await page.getByRole('button', { name: fixture.chat.title }).click()
     assert.equal(await page.getByLabel('AI에게 메시지').inputValue(), '유지되어야 하는 입력 초안')
-    await page.getByLabel('데모 사용자').selectOption('reviewer')
+    fixtureActor='reviewer'; await page.reload()
     await page.getByRole('button', { name: /^대화 모니터링/ }).click()
     await page.getByRole('heading', { name: '대화 모니터링' }).waitFor()
     await page.screenshot({ path: 'tmp/chat-verification/monitor-screen.png', fullPage: true })
