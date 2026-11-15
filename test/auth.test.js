@@ -2,13 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PGlite } from '@electric-sql/pglite'
 import { bootstrapAdmin, signup, login, administerUser, sessionUser, sessionCookie, authenticated, currentActor, logout, assertSameOrigin } from '../lib/auth.js'
-import { people } from '../lib/workflow.js'
+import { people } from '../lib/workspace.js'
 import { createChat } from '../lib/chat-service.js'
 import { getChat, chatDatabase } from '../lib/chat-store.js'
 
 test('approval, roles, opaque sessions, owner/reviewer permissions and revocation',async()=>{
   const db=new PGlite();globalThis.khalaConnection=Promise.resolve({db,external:false});delete globalThis.khalaAuthSchema
-  await db.query('CREATE TABLE khala_workspace(id integer PRIMARY KEY,state jsonb)')
   const password='test-password-at-least-12'
   const request=(token,method='GET',extra={})=>new Request('http://localhost/api/test',{method,headers:{cookie:`khala_session=${token}`,origin:'http://localhost',...extra}})
   try{

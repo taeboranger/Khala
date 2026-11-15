@@ -1,6 +1,6 @@
 import { authenticated } from '../../../../lib/auth.js'
 import { modelSettings, saveModelSettings, deleteModelSettings, testModelSettings } from '../../../../lib/model-settings.js'
-import { ensure } from '../../../../lib/workflow.js'
+import { ensure } from '../../../../lib/workspace.js'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
 export const GET=(request)=>authenticated(request,async(user)=>Response.json(await modelSettings(user),{headers:{'Cache-Control':'no-store'}}))

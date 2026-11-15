@@ -1,7 +1,7 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { registerPeopleReader } from '../lib/workflow'
+import { registerPeopleReader } from '../lib/workspace'
 
 const Session = createContext(null)
 export const useSession = () => useContext(Session)

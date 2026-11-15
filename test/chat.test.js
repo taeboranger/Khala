@@ -1,10 +1,9 @@
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { PGlite } from '@electric-sql/pglite'
-import { groundedLessons, retrieveKnowledge, publishLessons, syncPdfKnowledge } from '../lib/chat-knowledge.js'
+import { groundedLessons, retrieveKnowledge, publishLessons } from '../lib/chat-knowledge.js'
 import { chatDatabase, chatTransaction, getChat, chatWorkspace, knowledgeDetail, saveMessage, saveChat } from '../lib/chat-store.js'
 import { createChat, prepareChatFiles, retryExpertLearning, updateChatStatus, changeKnowledge, submitChatReview } from '../lib/chat-service.js'
-import { newState, withSharedCriteria } from '../lib/workflow.js'
 
 const db = new PGlite()
 globalThis.khalaConnection = Promise.resolve({ db, external: false })
@@ -100,24 +99,4 @@ test('stale LLM synthesis cannot overwrite a newer criterion', async () => {
   const rule = (await db.query("SELECT data FROM khala_knowledge WHERE rule_key='survey_denominator'")).rows[0].data
   await assert.rejects(chatTransaction((tx) => publishLessons(tx, [rule], { workType: 'general', actor: 'reviewer', eventId: 'stale', kind: 'review_feedback', expected: [{ key: rule.key, version: 1 }] })), (e) => e.status === 409)
   assert.equal((await knowledgeDetail('reviewer', rule.id)).item.version, 2)
-})
-
-test('LLM PDF rules enter shared retrieval once and conversation rules augment PDF checks without changing history', async () => {
-  await db.query('CREATE TABLE IF NOT EXISTS khala_workspace(id int PRIMARY KEY, state jsonb)')
-  const state = newState()
-  const feedback = { id: crypto.randomUUID(), actor: 'reviewer', issue: '시장 범위를 확인하세요.' }
-  state.docs.push({ id: crypto.randomUUID(), feedback: [feedback] })
-  state.guides.push({ version: 2, synthesis: 'llm', reviewFeedbackId: feedback.id, rules: [{ field: 'scope', trigger: 'cross_source_growth', title: '시장 범위 비교', context: '동일 시장 범위 확인', procedure: '두 출처의 범위를 비교한다' }] })
-  await db.query('INSERT INTO khala_workspace VALUES(1,$1::jsonb)', [JSON.stringify(state)])
-  await chatTransaction(syncPdfKnowledge); await chatTransaction(syncPdfKnowledge)
-  const result = await chatWorkspace('reviewer')
-  const imported = result.knowledge.find((k) => k.key === 'pdf_scope')
-  assert.equal(imported.version, 1)
-  assert.equal(imported.sources[0].docId, state.docs[0].id)
-  assert.ok(retrieveKnowledge([imported], 'market', '시장 범위 성장률').length)
-  const original = { version: 1, rules: [] }
-  const augmented = withSharedCriteria(original, [{ id: 'source', version: 3, title: '응답률', criterion: '분모 확인', procedure: '대상자 수 확인' }])
-  assert.match(augmented.rules[0].context, /분모 확인/)
-  assert.equal(original.rules.length, 0)
-  assert.equal(augmented.sharedCriteria[0].version, 3)
 })

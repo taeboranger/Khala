@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSession, AccountNav } from '../session-provider'
 import { AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, useExternalStoreRuntime } from '@assistant-ui/react'
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown'
-import { people, workTypes } from '../../lib/workflow'
+import { people, workTypes } from '../../lib/workspace'
 import { Monitoring, Experience, KnowledgeLibrary } from './team-panels'
 import './chat.css'
 
@@ -110,7 +110,7 @@ export default function ChatPage() {
         {['mine','review'].includes(mode) && threads.map((thread) => <button key={thread.id} className={thread.id === id ? 'active' : ''} disabled={!!busy} onClick={() => choose(thread)}><strong>{thread.title}</strong><small>{mode === 'review' ? `${people[thread.owner].name} · ` : ''}{statusText[thread.status]}</small></button>)}
         {mode !== 'knowledge' && !threads.length && <p className="chat-muted">{mode === 'review' ? '담당하는 대화가 아직 없어요.' : '새 대화를 시작해 보세요.'}</p>}
       </div>
-      <footer><a href="/">PDF 문서 검증 ↗</a><span className={connection?.connected ? 'chat-online' : ''}>{connection ? connection.connected ? `${connection.provider} · ${connection.model}` : '모델 설정 필요' : '모델 확인 중'}</span></footer>
+      <footer><span className={connection?.connected ? 'chat-online' : ''}>{connection ? connection.connected ? `${connection.provider} · ${connection.model}` : '모델 설정 필요' : '모델 확인 중'}</span></footer>
     </aside>
     <div className="chat-workspace">
       {error && <div className="chat-error" role="alert">{error}<button onClick={() => setError('')}>닫기</button></div>}

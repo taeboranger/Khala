@@ -28,9 +28,15 @@ try{
   let ready=false
   for(let i=0;i<100;i++){if(server.exitCode!==null)throw new Error(serverLog);try{if((await fetch(origin+'/api/auth')).ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,200))}assert(ready,'server readiness')
   assert.equal((await fetch(origin+'/api/chat',{headers:{'x-khala-actor':'reviewer'}})).status,401)
+  const home = await fetch(origin, { redirect: 'manual' })
+  assert.equal(home.status, 307)
+  assert.equal(new URL(home.headers.get('location'), origin).pathname, '/chat')
+  for (const path of ['/api/workspace', '/api/pdf']) {
+    assert.equal((await fetch(origin + path)).status, 404)
+  }
   browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})})
   const context=await browser.newContext({viewport:{width:1440,height:1000}});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message))
-  await page.goto(origin+'/chat');await page.waitForURL('**/login')
+  await page.goto(origin);await page.waitForURL('**/login')
   await page.getByRole('button',{name:'회원가입',exact:true}).click();await page.getByLabel('이름',{exact:true}).fill('테스트 작성자');await page.getByLabel('이메일',{exact:true}).fill('member@example.test');await page.getByLabel('비밀번호',{exact:true}).fill(password);await page.getByRole('button',{name:'가입 신청',exact:true}).click();await page.getByRole('status').filter({hasText:'가입 신청을 완료'}).waitFor()
   await page.getByLabel('이메일',{exact:true}).fill('member@example.test');await page.getByLabel('비밀번호',{exact:true}).fill(password);await page.locator('form').getByRole('button',{name:'로그인',exact:true}).click();await page.getByRole('alert').filter({hasText:'승인 대기'}).waitFor()
   await page.getByLabel('이메일',{exact:true}).fill('admin@example.test');await page.getByLabel('비밀번호',{exact:true}).fill(password);await page.locator('form').getByRole('button',{name:'로그인',exact:true}).click();await page.waitForURL('**/chat')

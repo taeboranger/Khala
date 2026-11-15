@@ -2,7 +2,7 @@ import { authenticated, currentActor } from '../../../lib/auth.js'
 import { NextResponse } from 'next/server'
 import { chatActor, chatDatabase, chatWorkspace, getChat, uuid, knowledgeDetail } from '../../../lib/chat-store.js'
 import { createChat, prepareChatFiles, sendChat, submitChatReview, updateChatStatus, retryExpertLearning, changeKnowledge, reactToMessage } from '../../../lib/chat-service.js'
-import { ensure } from '../../../lib/workflow.js'
+import { ensure } from '../../../lib/workspace.js'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
