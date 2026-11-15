@@ -3,6 +3,16 @@ import test from 'node:test'
 import { draftProposal, generate } from '../lib/generation.js'
 import { apply, cardList, current, guideFor, guidesFor, guideStructure, newState, pdfCards, view } from '../lib/workflow.js'
 
+test('unassigned reviewers cannot read or mutate document proposals', () => {
+  const state=newState()
+  const doc=apply(state,'writer',{op:'create',title:'담당자 한정 문서',market:'SaaS',purpose:'시장 확인'})
+  state.docs.find(item=>item.id===doc).submissions.push({revision:1,at:new Date().toISOString()})
+  state.proposals.push({id:'private-proposal',doc,author:'reviewer',published:null,issue:'담당 문서 원문'})
+  assert.equal(view(state,'reviewer').proposals.length,1)
+  assert.equal(view(state,'peer').proposals.length,0)
+  for(const op of ['saveProposal','testProposal','publish']) assert.throws(()=>apply(state,'peer',{op,proposal:'private-proposal'}),{status:403})
+})
+
 test('both feedback paths publish guides and required checks gate calculation and approval', async () => {
   delete process.env.OPENAI_API_KEY
   process.env.KHALA_AI_PROVIDER = 'disabled'
