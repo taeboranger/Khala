@@ -2,7 +2,7 @@
 
 KHALA's conversation UI uses **assistant-ui** (`@assistant-ui/react`, `@assistant-ui/react-markdown`), licensed under MIT. Project and original license: https://github.com/assistant-ui/assistant-ui/blob/main/LICENSE . The dependency packages retain their upstream license notices in `node_modules`.
 
-Actual model execution uses the locally installed **OpenAI Codex CLI**, an open-source agent CLI licensed under Apache-2.0: https://github.com/openai/codex . The CLI is not vendored by this repository; the user installs and authenticates it separately. Model access and subscription usage are separate from the source-code license.
+Model execution uses direct HTTPS requests to the selected provider or an OpenAI-compatible local server. No Codex CLI or subscription SDK is required. Provider API terms and usage charges apply independently of the UI source-code license.
 
 Other dependencies retain their respective upstream licenses; see each package's license file and `package-lock.json` for exact installed versions.
 

@@ -1,3 +1,5 @@
+import nextEnv from '@next/env'
+nextEnv.loadEnvConfig(process.cwd())
 // Explicit live smoke test. Uses a separate in-memory database and synthetic content only.
 import { PGlite } from '@electric-sql/pglite'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'

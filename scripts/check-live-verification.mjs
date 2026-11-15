@@ -1,3 +1,5 @@
+import nextEnv from '@next/env'
+nextEnv.loadEnvConfig(process.cwd())
 // Synthetic files only; does not connect to the app database or publish guides.
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { inspectPdf } from '../lib/pdf.js'

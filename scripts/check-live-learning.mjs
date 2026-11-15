@@ -1,3 +1,5 @@
+import nextEnv from '@next/env'
+nextEnv.loadEnvConfig(process.cwd())
 // End-to-end synthetic scenario, entirely in memory. No app DB changes.
 import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
