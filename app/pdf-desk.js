@@ -62,7 +62,7 @@ export default function PdfDesk({ doc, actor, guides, busy, send, back }) {
   async function download() {
     try {
       const query = new URLSearchParams({ doc: doc.id, file: pdf.id })
-      const response = await fetch(`/api/pdf?${query}`, { headers: { 'x-khala-actor': actor } })
+      const response = await fetch(`/api/pdf?${query}`, { headers: {  } })
       if (!response.ok) throw new Error('PDF 원본을 내려받지 못했어요.')
       const url = URL.createObjectURL(await response.blob())
       const link = document.createElement('a'); link.href = url; link.download = pdf.name; link.click()
@@ -172,7 +172,7 @@ function PdfPreview({ query, actor, number }) {
   useEffect(() => {
     const controller = new AbortController()
     let url
-    fetch(`/api/pdf?${query}`, { headers: { 'x-khala-actor': actor }, signal: controller.signal })
+    fetch(`/api/pdf?${query}`, { headers: {  }, signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error('페이지를 표시하지 못했어요. PDF 원본을 저장해 열 수 있어요.')
         return response.blob()

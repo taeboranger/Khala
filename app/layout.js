@@ -1,4 +1,5 @@
 import './style.css'
+import SessionProvider from './session-provider'
 
 export const metadata = {
   title: 'KHALA · 팀의 경험으로 더 나은 AI',
@@ -6,5 +7,5 @@ export const metadata = {
 }
 
 export default function Layout({ children }) {
-  return <html lang="ko"><body>{children}</body></html>
+  return <html lang="ko"><body><SessionProvider>{children}</SessionProvider></body></html>
 }

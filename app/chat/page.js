@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useSession, AccountNav } from '../session-provider'
 import { AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, useExternalStoreRuntime } from '@assistant-ui/react'
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown'
 import { people, workTypes } from '../../lib/workflow'
@@ -12,7 +13,8 @@ const date = (value) => new Date(value).toLocaleString('ko-KR', { month: 'short'
 const convertMessage = (message) => ({ id: message.id, role: message.role, content: [{ type: 'text', text: message.text || '첨부파일을 확인해 주세요.' }], createdAt: new Date(message.at) })
 
 export default function ChatPage() {
-  const [actor, setActor] = useState('writer')
+  const {user}=useSession()
+  const actor=user.id
   const [data, setData] = useState({ threads: [], knowledge: [] })
   const [id, setId] = useState(null)
   const [mode, setMode] = useState('mine')
@@ -28,13 +30,13 @@ export default function ChatPage() {
   const lock = useRef(false)
   const chat = data.chat
   const reviewer = chat?.reviewer === actor && chat?.owner !== actor
-  const headers = { 'x-khala-actor': actor }
+  const headers = {  }
 
   useEffect(() => { fetch('/api/connection').then((r) => r.json()).then(setConnection).catch(() => setConnection({ connected: false })) }, [])
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true); setTarget(null)
-    fetch(`/api/chat${id ? `?id=${id}` : ''}`, { headers: { 'x-khala-actor': actor }, signal: controller.signal })
+    fetch(`/api/chat${id ? `?id=${id}` : ''}`, { headers: {  }, signal: controller.signal })
       .then(async (response) => { const result = await response.json(); if (!response.ok) throw new Error(result.error); setData(result) })
       .catch((err) => { if (err.name !== 'AbortError') setError(err.message) })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
@@ -47,14 +49,14 @@ export default function ChatPage() {
     const timer = setInterval(async () => {
       if (refreshing || lock.current || document.visibilityState === 'hidden') return
       refreshing = true
-      try { const r = await fetch(`/api/chat${id ? `?id=${id}` : ''}`, { headers: { 'x-khala-actor': actor }, signal: controller.signal }); const next = await r.json(); if (r.ok && !controller.signal.aborted && !lock.current) setData(next) } catch {} finally { refreshing = false }
+      try { const r = await fetch(`/api/chat${id ? `?id=${id}` : ''}`, { headers: {  }, signal: controller.signal }); const next = await r.json(); if (r.ok && !controller.signal.aborted && !lock.current) setData(next) } catch {} finally { refreshing = false }
     }, 5000)
     return () => { clearInterval(timer); controller.abort() }
   }, [id, actor, busy])
   useEffect(() => {
     if (!reviewer || !['review','mine'].includes(mode) || !chat || chat.revision <= (chat.seenRevision ?? 0) || busy) return
     const controller = new AbortController()
-    fetch('/api/chat', { method: 'POST', headers: { 'x-khala-actor': actor, 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'seen', id: chat.id, base: chat.revision }), signal: controller.signal }).catch(() => {})
+    fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'seen', id: chat.id, base: chat.revision }), signal: controller.signal }).catch(() => {})
     return () => controller.abort()
   }, [chat?.id, chat?.revision, chat?.seenRevision, reviewer, actor, mode, busy])
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function ChatPage() {
   return <div className="chat-app">
     <aside className="chat-sidebar">
       <a className="chat-brand" href="/chat">KHALA<span>팀의 경험으로 더 나은 답변</span></a>
-      <label className="chat-identity">데모 사용자<select value={actor} disabled={!!busy} onChange={(e) => { setActor(e.target.value); setId(null); setData({ threads: [], knowledge: [] }); setMode('mine'); setError('') }}>{Object.entries(people).map(([key, person]) => <option key={key} value={key}>{person.name} · {person.role}</option>)}</select></label>
+      <AccountNav/>
       <div className="chat-create"><label>이번 대화의 업무<select value={type} disabled={!!busy} onChange={(e) => setType(e.target.value)}>{Object.entries(workTypes).map(([key, title]) => <option key={key} value={key}>{title}</option>)}</select></label><button className="primary" disabled={!!busy} onClick={create}>＋ 새 대화</button></div>
       <nav className="chat-nav" aria-label="대화 탐색">
         <button aria-pressed={mode === 'mine'} disabled={!!busy} onClick={() => setMode('mine')}>내 대화</button>
@@ -108,11 +110,11 @@ export default function ChatPage() {
         {['mine','review'].includes(mode) && threads.map((thread) => <button key={thread.id} className={thread.id === id ? 'active' : ''} disabled={!!busy} onClick={() => choose(thread)}><strong>{thread.title}</strong><small>{mode === 'review' ? `${people[thread.owner].name} · ` : ''}{statusText[thread.status]}</small></button>)}
         {mode !== 'knowledge' && !threads.length && <p className="chat-muted">{mode === 'review' ? '담당하는 대화가 아직 없어요.' : '새 대화를 시작해 보세요.'}</p>}
       </div>
-      <footer><a href="/">PDF 문서 검증 ↗</a><span className={connection?.connected ? 'chat-online' : ''}>{connection ? connection.connected ? '● ChatGPT 구독 연결됨' : '○ 구독 로그인 필요' : '구독 확인 중'}</span></footer>
+      <footer><a href="/">PDF 문서 검증 ↗</a><span className={connection?.connected ? 'chat-online' : ''}>{connection ? connection.connected ? `${connection.provider} · ${connection.model}` : '모델 설정 필요' : '모델 확인 중'}</span></footer>
     </aside>
     <div className="chat-workspace">
       {error && <div className="chat-error" role="alert">{error}<button onClick={() => setError('')}>닫기</button></div>}
-      {connection && !connection.connected && <div className="chat-error">이 PC에서 <code>codex login</code>으로 ChatGPT 구독에 로그인한 뒤 새로고침하세요.</div>}
+      {connection && !connection.connected && <div className="chat-error"><a href="/settings">모델 설정</a>에서 제공업체와 API 키를 연결하세요.</div>}
       {mode === 'monitor' ? <Monitoring threads={data.threads} actor={actor} open={choose} busy={!!busy} /> : mode === 'experience' ? <Experience items={data.experience} busy={!!busy} open={openSource} learn={(m) => mutate({ op: 'learn', id: m.chatId, messageId: m.id }, '전문 판단을 기준으로 정리하고 있어요')} /> : mode === 'knowledge' ? <KnowledgeLibrary items={data.knowledge} actor={actor} busy={!!busy} open={openSource} selected={knowledgeId} select={setKnowledgeId} changeActive={(r) => mutate({ op: 'knowledgeActive', knowledgeId: r.id, base: r.version, active: !r.active }, '검증 기준 사용 여부를 변경하고 있어요')} /> : loading ? <div className="chat-empty" role="status">대화를 불러오고 있어요…</div> : !chat ? <div className="chat-empty">
         <span className="chat-eyebrow">대화 → 리뷰 → 팀의 검증 기준</span><h1>일하면서 나눈 대화가<br />팀의 다음 답변을 바꿉니다.</h1><p>문서를 읽고, 이미지를 살펴보고, 함께 초안을 만드세요.<br />상사의 리뷰와 업무 노하우가 다음 대화의 기준이 됩니다.</p><button className="primary" onClick={create} disabled={!!busy}>AI와 업무 시작하기 →</button><small>대화와 첨부파일은 저장되며 담당 리뷰어가 볼 수 있습니다.</small>
       </div> : <>
@@ -185,14 +187,14 @@ function Attachment({ file, actor, chatId }) {
     if (!file.id || !file.mime?.startsWith('image/')) return
     let cancelled = false; let url
     const controller = new AbortController()
-    fetch(`/api/chat?id=${chatId}&file=${file.id}`, { headers: { 'x-khala-actor': actor }, signal: controller.signal })
+    fetch(`/api/chat?id=${chatId}&file=${file.id}`, { headers: {  }, signal: controller.signal })
       .then(async (r) => { if (!r.ok) throw new Error('이미지 미리보기를 불러오지 못했어요.'); const blob = await r.blob(); if (!cancelled) { url = URL.createObjectURL(blob); setPreview(url) } })
       .catch((err) => { if (err.name !== 'AbortError') setError(err.message) })
     return () => { cancelled = true; controller.abort(); if (url) URL.revokeObjectURL(url) }
   }, [file.id, file.mime, actor, chatId])
   async function open() {
     try {
-      const r = await fetch(`/api/chat?id=${chatId}&file=${file.id}`, { headers: { 'x-khala-actor': actor } })
+      const r = await fetch(`/api/chat?id=${chatId}&file=${file.id}`, { headers: {  } })
       if (!r.ok) throw new Error('파일을 불러오지 못했어요.')
       const url = URL.createObjectURL(await r.blob()); const a = document.createElement('a'); a.href = url; a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 60000)
     } catch (err) { setError(err.message) }

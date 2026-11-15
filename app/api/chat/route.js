@@ -1,3 +1,4 @@
+import { authenticated, currentActor } from '../../../lib/auth.js'
 import { NextResponse } from 'next/server'
 import { chatActor, chatDatabase, chatWorkspace, getChat, uuid, knowledgeDetail } from '../../../lib/chat-store.js'
 import { createChat, prepareChatFiles, sendChat, submitChatReview, updateChatStatus, retryExpertLearning, changeKnowledge, reactToMessage } from '../../../lib/chat-service.js'
@@ -9,7 +10,7 @@ function failure(error) {
   console.warn('KHALA chat API:', error.name, error.status ?? '')
   return NextResponse.json({ error: error.status ? error.message : '요청을 처리하지 못했어요. 입력과 파일을 확인하세요.' }, { status: error.status ?? 500 })
 }
-export async function GET(request) {
+async function handleGET(request) {
   try {
     const actor = chatActor(request)
     const query = request.nextUrl.searchParams
@@ -26,7 +27,7 @@ export async function GET(request) {
     return NextResponse.json(await chatWorkspace(actor, id))
   } catch (error) { return failure(error) }
 }
-export async function POST(request) {
+async function handlePOST(request) {
   try {
     const actor = chatActor(request)
     if (request.headers.get('content-type')?.includes('multipart/form-data')) {
@@ -52,3 +53,7 @@ export async function POST(request) {
     return NextResponse.json(await chatWorkspace(actor, id))
   } catch (error) { return failure(error) }
 }
+
+export const GET = (request) => authenticated(request, () => handleGET(request))
+
+export const POST = (request) => authenticated(request, () => handlePOST(request))

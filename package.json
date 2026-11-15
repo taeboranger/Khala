@@ -7,7 +7,8 @@
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build --webpack",
     "start": "next start --hostname 127.0.0.1",
-    "test": "node --test"
+    "test": "node --test",
+    "admin:create": "node scripts/create-admin.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.36",

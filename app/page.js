@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useSession, AccountNav } from './session-provider'
 import { cardList, comparisonStatus, current, fields, guidesFor, people, workTypes } from '../lib/workflow'
 import PdfDesk from './pdf-desk'
 import GuideStructure from './guide-structure'
@@ -16,7 +17,8 @@ const formValues = (event) => {
 const formatDate = (value) => new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
 export default function Home() {
-  const [actor, setActor] = useState('writer')
+  const {user}=useSession()
+  const actor=user.id
   const [data, setData] = useState(null)
   const [docId, setDocId] = useState(null)
   const [page, setPage] = useState('mine')
@@ -29,7 +31,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/api/workspace', { headers: { 'x-khala-actor': actor }, signal: controller.signal })
+    fetch('/api/workspace', { headers: {  }, signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error)
@@ -50,13 +52,13 @@ export default function Home() {
       const pdfUpload = op === 'pdfUpload'
       const response = await fetch(pdfUpload ? '/api/pdf' : '/api/workspace', {
         method: 'POST',
-        headers: { 'x-khala-actor': actor, ...(!pdfUpload && { 'Content-Type': 'application/json' }) },
+        headers: { ...(!pdfUpload && { 'Content-Type': 'application/json' }) },
         body: pdfUpload ? values : JSON.stringify({ ...values, op }),
       })
       const payload = await response.json()
       if (!response.ok) {
         if (response.status === 409) {
-          const fresh = await fetch('/api/workspace', { headers: { 'x-khala-actor': actor } })
+          const fresh = await fetch('/api/workspace', { headers: {  } })
           if (fresh.ok) setData(await fresh.json())
         }
         throw new Error(payload.error)
@@ -90,20 +92,12 @@ export default function Home() {
           <button className={page === 'guide' ? 'selected' : ''} onClick={() => choosePage('guide')}>검증 기준 개선함</button>
         </>}
       </nav>
-      <label className="actor">데모 사용자
-        <select disabled={busy} value={actor} onChange={(event) => {
-          setData(null)
-          choosePage('mine')
-          setActor(event.target.value)
-        }}>
-          {Object.entries(people).map(([key, person]) => <option key={key} value={key}>{person.name} · {person.role}</option>)}
-        </select>
-      </label>
-      <span className={`tag ${connection?.connected ? 'pass' : 'pending'}`}>{connection ? connection.connected ? 'ChatGPT 구독 연결됨' : '구독 로그인 필요' : '구독 확인 중'}</span>
+      <AccountNav/>
+      <span className={`tag ${connection?.connected ? 'pass' : 'pending'}`}>{connection ? connection.connected ? `${connection.provider} · ${connection.model}` : '모델 설정 필요' : '모델 확인 중'}</span>
     </header>
     <main className={doc && current(doc).pdf ? 'pdf-main' : undefined}>
       {error && <div className="alert" role="alert">{error} <button onClick={() => setError('')} aria-label="오류 메시지 닫기">닫기</button></div>}
-      {connection && !connection.connected && <div className="notice">이 PC의 터미널에서 <code>codex login</code>으로 ChatGPT에 로그인한 뒤 새로고침하세요.</div>}
+      {connection && !connection.connected && <div className="notice"><a href="/settings">모델 설정</a>에서 제공업체와 API 키를 연결하세요.</div>}
       {busy && <div className="working" role="status">{({ pdfUpload: 'PDF를 읽고 AI가 검증하고 있어요.', verifyPdfWithAi: 'AI가 문서와 근거를 다시 대조하고 있어요.', feedback: '피드백을 저장하고 AI가 검증 기준를 정리하고 있어요.', proposal: '검증 경험을 검증 기준에 반영하고 있어요.', retryFeedback: 'AI가 피드백을 검증 기준에 다시 반영하고 있어요.', verifyPdf: '판정을 저장하고 있어요.', submit: '리뷰를 요청하고 있어요.', approve: '최종 승인하고 있어요.' })[operation] ?? '요청을 처리하고 있어요.'}</div>}
       {data && (page === 'guide'
         ? <GuideDesk data={data} canPublish={people[actor].publish} busy={busy} send={send} />

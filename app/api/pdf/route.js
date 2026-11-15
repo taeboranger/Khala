@@ -1,3 +1,4 @@
+import { authenticated, currentActor } from '../../../lib/auth.js'
 import { NextResponse } from 'next/server'
 import { inspectPdf, maxPdfBytes, renderPdfPage } from '../../../lib/pdf'
 import { changeState, readPdf, readState } from '../../../lib/store'
@@ -8,18 +9,14 @@ import { runDocumentVerification } from '../../../lib/run-document-verification'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-function actorFor(request) {
-  const actor = request.headers.get('x-khala-actor') ?? 'writer'
-  ensure(Object.hasOwn(people, actor), '사용자를 확인하세요.', 403)
-  return actor
-}
+function actorFor() { return currentActor() }
 
 function failure(error) {
   if (!(error instanceof WorkflowError)) console.error(error)
   return NextResponse.json({ error: error instanceof WorkflowError ? error.message : 'PDF를 처리하지 못했어요.' }, { status: error instanceof WorkflowError ? error.status : 500 })
 }
 
-export async function POST(request) {
+async function handlePOST(request) {
   try {
     const actor = actorFor(request)
     ensure(Number(request.headers.get('content-length')) <= maxPdfBytes + 65536, '20MB 이하의 PDF를 올려주세요.', 413)
@@ -55,7 +52,7 @@ export async function POST(request) {
   }
 }
 
-export async function GET(request) {
+async function handleGET(request) {
   try {
     const actor = actorFor(request)
     const query = request.nextUrl.searchParams
@@ -79,3 +76,7 @@ export async function GET(request) {
     return failure(error)
   }
 }
+
+export const GET = (request) => authenticated(request, () => handleGET(request))
+
+export const POST = (request) => authenticated(request, () => handlePOST(request))

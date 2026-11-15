@@ -38,7 +38,7 @@ export function KnowledgeLibrary({ items, actor, busy, changeActive, open, selec
   useEffect(() => {
     if (!selected) return
     const controller = new AbortController(); setDetail(null); setError('')
-    fetch(`/api/chat?knowledge=${selected}`, { headers: { 'x-khala-actor': actor }, signal: controller.signal }).then(async (r) => { const value = await r.json(); if (!r.ok) throw new Error(value.error); setDetail(value) }).catch((e) => { if (e.name !== 'AbortError') setError(e.message) })
+    fetch(`/api/chat?knowledge=${selected}`, { headers: {  }, signal: controller.signal }).then(async (r) => { const value = await r.json(); if (!r.ok) throw new Error(value.error); setDetail(value) }).catch((e) => { if (e.name !== 'AbortError') setError(e.message) })
     return () => controller.abort()
   }, [selected, actor, version])
   const matches = items.filter((r) => (filter === 'all' || r.workType === filter) && `${r.title} ${r.criterion}`.includes(query))

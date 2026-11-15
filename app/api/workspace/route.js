@@ -1,3 +1,4 @@
+import { authenticated, currentActor } from '../../../lib/auth.js'
 import { NextResponse } from 'next/server'
 import { generate, draftProposal, modelReady, synthesizeReview } from '../../../lib/generation'
 import { changeState, readState } from '../../../lib/store'
@@ -7,11 +8,7 @@ import { apply, buildProposalInput, canSee, current, ensure, feedbackNeedsSynthe
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-function actorFor(request) {
-  const actor = request.headers.get('x-khala-actor') ?? 'writer'
-  ensure(Object.hasOwn(people, actor), '사용자를 확인하세요.', 403)
-  return actor
-}
+function actorFor() { return currentActor() }
 
 function failure(error) {
   if (!(error instanceof WorkflowError)) console.error(error)
@@ -22,7 +19,7 @@ function payload(state, actor, result) {
   return NextResponse.json({ ...view(state, actor), result, modelReady: modelReady() })
 }
 
-export async function GET(request) {
+async function handleGET(request) {
   try {
     const actor = actorFor(request)
     return payload(await readState(), actor)
@@ -31,7 +28,7 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
+async function handlePOST(request) {
   try {
     const actor = actorFor(request)
     const body = await request.json()
@@ -85,3 +82,7 @@ export async function POST(request) {
     return failure(error)
   }
 }
+
+export const GET = (request) => authenticated(request, () => handleGET(request))
+
+export const POST = (request) => authenticated(request, () => handlePOST(request))
